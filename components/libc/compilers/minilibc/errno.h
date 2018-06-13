@@ -1,6 +1,7 @@
 #ifndef __ERRNO_H__
 #define __ERRNO_H__
 
+#undef RT_USING_DFS
 #ifdef RT_USING_DFS
 
 #include <dfs_def.h>

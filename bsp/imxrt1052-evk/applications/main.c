@@ -115,6 +115,8 @@ void dump_link_info(void)
 #endif
 }
 
+extern void JavaTask();
+
 int main(void)
 {
     rt_uint32_t result;
@@ -139,6 +141,9 @@ int main(void)
         rt_kprintf("sdcard init fail or timeout: %d!\n", result);
     }
 #endif
+
+	//M@x: Add this for finsh entrance of JOSHVM
+	finsh_syscall_append("jtest", JavaTask);
 
     while (1)
     {

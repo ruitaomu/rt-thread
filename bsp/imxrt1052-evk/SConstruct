@@ -38,6 +38,8 @@ if rtconfig.PLATFORM == 'iar':
 	env.Replace(ARFLAGS = [''])
 	env.Replace(LINKCOM = ['$LINK $SOURCES $LINKFLAGS -o $TARGET --map project.map'])
 
+env['LINKCOM'] = '$LINK -o $TARGET $LINKFLAGS $__RPATH $SOURCES $_LIBDIRFLAGS $_LIBFLAGS -L. -lcldc_vm -lpcsl_escfilenames -lpcsl_file -lpcsl_memory -lpcsl_network -lpcsl_print -lpcsl_string -ljavacall'
+
 Export('RTT_ROOT')
 Export('rtconfig')
 
