@@ -21,7 +21,7 @@
 # Date           Author       Notes
 # 2015-01-20     Bernard      Add copyright information
 # 2015-07-25     Bernard      Add LOCAL_CCFLAGS/LOCAL_CPPPATH/LOCAL_CPPDEFINES for
-#                             group definition. 
+#                             group definition.
 #
 
 import os
@@ -69,7 +69,7 @@ def stop_handling_includes(self, t=None):
     d['include'] =  self.do_nothing
     d['include_next'] =  self.do_nothing
     d['define'] =  self.do_nothing
-    
+
 PatchedPreProcessor = SCons.cpp.PreProcessor
 PatchedPreProcessor.start_handling_includes = start_handling_includes
 PatchedPreProcessor.stop_handling_includes = stop_handling_includes
@@ -264,7 +264,7 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     AddOption('--target',
                       dest='target',
                       type='string',
-                      help='set target project: mdk/mdk4/mdk5/iar/vs/vsc/ua')
+                      help='set target project: mdk/mdk4/mdk5/iar/vs/vsc/ua/cdk')
 
     #{target_name:(CROSS_TOOL, PLATFORM)}
     tgt_dict = {'mdk':('keil', 'armcc'),
@@ -275,8 +275,10 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
                 'vs2012':('msvc', 'cl'),
                 'vsc' : ('gcc', 'gcc'),
                 'cb':('keil', 'armcc'),
-                'ua':('gcc', 'gcc')}
+                'ua':('gcc', 'gcc'),
+                'cdk':('gcc', 'gcc')}
     tgt_name = GetOption('target')
+
     if tgt_name:
         # --target will change the toolchain settings which clang-analyzer is
         # depend on
@@ -295,10 +297,10 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
         and rtconfig.PLATFORM == 'gcc':
         AddDepend('RT_USING_MINILIBC')
 
-    AddOption('--genconfig', 
+    AddOption('--genconfig',
                 dest = 'genconfig',
                 action = 'store_true',
-                default = False, 
+                default = False,
                 help = 'Generate .config from rtconfig.h')
     if GetOption('genconfig'):
         from genconf import genconfig
@@ -306,7 +308,7 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
         exit(0)
 
     if env['PLATFORM'] != 'win32':
-        AddOption('--menuconfig', 
+        AddOption('--menuconfig',
                     dest = 'menuconfig',
                     action = 'store_true',
                     default = False,
@@ -487,6 +489,11 @@ def MergeGroup(src_group, group):
             src_group['CPPDEFINES'] = src_group['CPPDEFINES'] + group['CPPDEFINES']
         else:
             src_group['CPPDEFINES'] = group['CPPDEFINES']
+    if group.has_key('ASFLAGS'):
+        if src_group.has_key('ASFLAGS'):
+            src_group['ASFLAGS'] = src_group['ASFLAGS'] + group['ASFLAGS']
+        else:
+            src_group['ASFLAGS'] = group['ASFLAGS']
 
     # for local CCFLAGS/CPPPATH/CPPDEFINES
     if group.has_key('LOCAL_CCFLAGS'):
@@ -520,6 +527,11 @@ def MergeGroup(src_group, group):
             src_group['LIBPATH'] = src_group['LIBPATH'] + group['LIBPATH']
         else:
             src_group['LIBPATH'] = group['LIBPATH']
+    if group.has_key('LOCAL_ASFLAGS'):
+        if src_group.has_key('LOCAL_ASFLAGS'):
+            src_group['LOCAL_ASFLAGS'] = src_group['LOCAL_ASFLAGS'] + group['LOCAL_ASFLAGS']
+        else:
+            src_group['LOCAL_ASFLAGS'] = group['LOCAL_ASFLAGS']
 
 def DefineGroup(name, src, depend, **parameters):
     global Env
@@ -550,6 +562,8 @@ def DefineGroup(name, src, depend, **parameters):
         Env.AppendUnique(CPPDEFINES = group['CPPDEFINES'])
     if group.has_key('LINKFLAGS'):
         Env.AppendUnique(LINKFLAGS = group['LINKFLAGS'])
+    if group.has_key('ASFLAGS'):
+        Env.AppendUnique(ASFLAGS = group['ASFLAGS'])
 
     # check whether to clean up library
     if GetOption('cleanlib') and os.path.exists(os.path.join(group['path'], GroupLibFullName(name, Env))):
@@ -645,13 +659,14 @@ def DoBuilding(target, objects):
 
     # handle local group
     def local_group(group, objects):
-        if group.has_key('LOCAL_CCFLAGS') or group.has_key('LOCAL_CPPPATH') or group.has_key('LOCAL_CPPDEFINES'):
+        if group.has_key('LOCAL_CCFLAGS') or group.has_key('LOCAL_CPPPATH') or group.has_key('LOCAL_CPPDEFINES') or group.has_key('LOCAL_ASFLAGS'):
             CCFLAGS = Env.get('CCFLAGS', '') + group.get('LOCAL_CCFLAGS', '')
             CPPPATH = Env.get('CPPPATH', ['']) + group.get('LOCAL_CPPPATH', [''])
             CPPDEFINES = Env.get('CPPDEFINES', ['']) + group.get('LOCAL_CPPDEFINES', [''])
+            ASFLAGS = Env.get('ASFLAGS', '') + group.get('LOCAL_ASFLAGS', '')
 
             for source in group['src']:
-                objects.append(Env.Object(source, CCFLAGS = CCFLAGS,
+                objects.append(Env.Object(source, CCFLAGS = CCFLAGS, ASFLAGS = ASFLAGS,
                     CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES))
 
             return True
@@ -758,6 +773,10 @@ def EndBuilding(target, program = None):
         from vsc import GenerateVSCode
         GenerateVSCode(Env)
 
+    if GetOption('target') == 'cdk':
+        from cdk import CDKProject
+        CDKProject('project.cdkproj', Projects)
+
     BSP_ROOT = Dir('#').abspath
     if GetOption('copy') and program != None:
         from mkdist import MakeCopy
@@ -775,25 +794,52 @@ def EndBuilding(target, program = None):
         from cscope import CscopeDatabase
         CscopeDatabase(Projects)
 
+    if not GetOption('help') and not GetOption('target'):
+        if not os.path.exists(rtconfig.EXEC_PATH):
+            print "Error: Toolchain path (%s) is not exist, please check 'EXEC_PATH' in path or rtconfig.py." % rtconfig.EXEC_PATH
+            sys.exit(1)
+
 def SrcRemove(src, remove):
     if not src:
         return
 
-    for item in src:
-        if type(item) == type('str'):
-            item_str = item
-        else:
-            item_str = item.rstr()
+    src_bak = src[:]
 
-        if os.path.isabs(item_str):
-            item_str = os.path.relpath(item_str, GetCurrentDir())
+    if type(remove) == type('str'):
+        if os.path.isabs(remove):
+            remove = os.path.relpath(remove, GetCurrentDir())
+        remove = os.path.normpath(remove)
 
-        if type(remove) == type('str'):
+        for item in src_bak:
+            if type(item) == type('str'):
+                item_str = item
+            else:
+                item_str = item.rstr()
+
+            if os.path.isabs(item_str):
+                item_str = os.path.relpath(item_str, GetCurrentDir())
+            item_str = os.path.normpath(item_str)
+
             if item_str == remove:
                 src.remove(item)
-        else:
-            for remove_item in remove:
-                if item_str == str(remove_item):
+    else:
+        for remove_item in remove:
+            remove_str = str(remove_item)
+            if os.path.isabs(remove_str):
+                remove_str = os.path.relpath(remove_str, GetCurrentDir())
+            remove_str = os.path.normpath(remove_str)
+
+            for item in src_bak:
+                if type(item) == type('str'):
+                    item_str = item
+                else:
+                    item_str = item.rstr()
+
+                if os.path.isabs(item_str):
+                    item_str = os.path.relpath(item_str, GetCurrentDir())
+                item_str = os.path.normpath(item_str)
+
+                if item_str == remove_str:
                     src.remove(item)
 
 def GetVersion():
