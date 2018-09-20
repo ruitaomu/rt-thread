@@ -116,6 +116,23 @@ void dump_link_info(void)
 
 extern void JavaTask();
 
+static void java_thread_entry(void *parameter)
+{
+    rt_kprintf("java task started.\n");
+    JavaTask();
+}
+
+int startJavaTask(void)
+{
+    rt_thread_t tid = rt_thread_create("java",
+                       java_thread_entry, RT_NULL,
+                       32 * 1024, 20, 10);
+    rt_thread_startup(tid);
+    return 0;
+}
+
+// MSH_CMD_EXPORT(startJavaTask, start java task);
+
 int main(void)
 {
     rt_uint32_t result;
@@ -141,8 +158,8 @@ int main(void)
     }
 #endif
 
-	//M@x: Add this for finsh entrance of JOSHVM
-	finsh_syscall_append("jtest", JavaTask);
+    rt_kprintf("Call startJavaTask.\n");
+    startJavaTask();
 
     while (1)
     {
