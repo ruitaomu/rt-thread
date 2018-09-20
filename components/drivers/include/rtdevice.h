@@ -35,6 +35,7 @@
 #include "ipc/waitqueue.h"
 #include "ipc/pipe.h"
 #include "ipc/poll.h"
+#include "ipc/ringblk_buf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,6 +115,13 @@ extern "C" {
 
 #ifdef RT_USING_PWM
 #include "drivers/rt_drv_pwm.h"
+#endif
+
+#ifdef MTD_USING_NOR
+#include "drivers/mtdnor.h"
+#endif
+#ifdef MTD_USING_NAND
+#include "drivers/mtdnand.h"
 #endif
 
 #ifdef __cplusplus

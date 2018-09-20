@@ -1,21 +1,11 @@
 /*
+ * Copyright (c) 2006-2018, RT-Thread Development Team
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  * File      : ipc.c
- * This file is part of RT-Thread RTOS
- * COPYRIGHT (C) 2006 - 2012, RT-Thread Development Team
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Change Logs:
  * Date           Author       Notes
@@ -242,7 +232,10 @@ RTM_EXPORT(rt_sem_init);
  */
 rt_err_t rt_sem_detach(rt_sem_t sem)
 {
+    /* parameter check */
     RT_ASSERT(sem != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&sem->parent.parent) == RT_Object_Class_Semaphore);
+    RT_ASSERT(rt_object_is_systemobject(&sem->parent.parent));
 
     /* wakeup all suspend threads */
     rt_ipc_list_resume_all(&(sem->parent.suspend_thread));
@@ -303,7 +296,10 @@ rt_err_t rt_sem_delete(rt_sem_t sem)
 {
     RT_DEBUG_NOT_IN_INTERRUPT;
 
+    /* parameter check */
     RT_ASSERT(sem != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&sem->parent.parent) == RT_Object_Class_Semaphore);
+    RT_ASSERT(rt_object_is_systemobject(&sem->parent.parent) == RT_FALSE);
 
     /* wakeup all suspend threads */
     rt_ipc_list_resume_all(&(sem->parent.suspend_thread));
@@ -330,7 +326,9 @@ rt_err_t rt_sem_take(rt_sem_t sem, rt_int32_t time)
     register rt_base_t temp;
     struct rt_thread *thread;
 
+    /* parameter check */
     RT_ASSERT(sem != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&sem->parent.parent) == RT_Object_Class_Semaphore);
 
     RT_OBJECT_HOOK_CALL(rt_object_trytake_hook, (&(sem->parent.parent)));
 
@@ -437,6 +435,10 @@ rt_err_t rt_sem_release(rt_sem_t sem)
     register rt_base_t temp;
     register rt_bool_t need_schedule;
 
+    /* parameter check */
+    RT_ASSERT(sem != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&sem->parent.parent) == RT_Object_Class_Semaphore);
+
     RT_OBJECT_HOOK_CALL(rt_object_put_hook, (&(sem->parent.parent)));
 
     need_schedule = RT_FALSE;
@@ -481,7 +483,10 @@ RTM_EXPORT(rt_sem_release);
 rt_err_t rt_sem_control(rt_sem_t sem, int cmd, void *arg)
 {
     rt_ubase_t level;
+
+    /* parameter check */
     RT_ASSERT(sem != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&sem->parent.parent) == RT_Object_Class_Semaphore);
 
     if (cmd == RT_IPC_CMD_RESET)
     {
@@ -524,6 +529,7 @@ RTM_EXPORT(rt_sem_control);
  */
 rt_err_t rt_mutex_init(rt_mutex_t mutex, const char *name, rt_uint8_t flag)
 {
+    /* parameter check */
     RT_ASSERT(mutex != RT_NULL);
 
     /* init object */
@@ -555,7 +561,10 @@ RTM_EXPORT(rt_mutex_init);
  */
 rt_err_t rt_mutex_detach(rt_mutex_t mutex)
 {
+    /* parameter check */
     RT_ASSERT(mutex != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mutex->parent.parent) == RT_Object_Class_Mutex);
+    RT_ASSERT(rt_object_is_systemobject(&mutex->parent.parent));
 
     /* wakeup all suspend threads */
     rt_ipc_list_resume_all(&(mutex->parent.suspend_thread));
@@ -617,7 +626,10 @@ rt_err_t rt_mutex_delete(rt_mutex_t mutex)
 {
     RT_DEBUG_NOT_IN_INTERRUPT;
 
+    /* parameter check */
     RT_ASSERT(mutex != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mutex->parent.parent) == RT_Object_Class_Mutex);
+    RT_ASSERT(rt_object_is_systemobject(&mutex->parent.parent) == RT_FALSE);
 
     /* wakeup all suspend threads */
     rt_ipc_list_resume_all(&(mutex->parent.suspend_thread));
@@ -647,7 +659,9 @@ rt_err_t rt_mutex_take(rt_mutex_t mutex, rt_int32_t time)
     /* this function must not be used in interrupt even if time = 0 */
     RT_DEBUG_IN_THREAD_CONTEXT;
 
+    /* parameter check */
     RT_ASSERT(mutex != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mutex->parent.parent) == RT_Object_Class_Mutex);
 
     /* get current thread */
     thread = rt_thread_self();
@@ -779,6 +793,10 @@ rt_err_t rt_mutex_release(rt_mutex_t mutex)
     struct rt_thread *thread;
     rt_bool_t need_schedule;
 
+    /* parameter check */
+    RT_ASSERT(mutex != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mutex->parent.parent) == RT_Object_Class_Mutex);
+
     need_schedule = RT_FALSE;
 
     /* only thread could release mutex because we need test the ownership */
@@ -874,6 +892,10 @@ RTM_EXPORT(rt_mutex_release);
  */
 rt_err_t rt_mutex_control(rt_mutex_t mutex, int cmd, void *arg)
 {
+    /* parameter check */
+    RT_ASSERT(mutex != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mutex->parent.parent) == RT_Object_Class_Mutex);
+
     return -RT_ERROR;
 }
 RTM_EXPORT(rt_mutex_control);
@@ -892,6 +914,7 @@ RTM_EXPORT(rt_mutex_control);
  */
 rt_err_t rt_event_init(rt_event_t event, const char *name, rt_uint8_t flag)
 {
+    /* parameter check */
     RT_ASSERT(event != RT_NULL);
 
     /* init object */
@@ -921,6 +944,8 @@ rt_err_t rt_event_detach(rt_event_t event)
 {
     /* parameter check */
     RT_ASSERT(event != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&event->parent.parent) == RT_Object_Class_Event);
+    RT_ASSERT(rt_object_is_systemobject(&event->parent.parent));
 
     /* resume all suspended thread */
     rt_ipc_list_resume_all(&(event->parent.suspend_thread));
@@ -976,6 +1001,8 @@ rt_err_t rt_event_delete(rt_event_t event)
 {
     /* parameter check */
     RT_ASSERT(event != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&event->parent.parent) == RT_Object_Class_Event);
+    RT_ASSERT(rt_object_is_systemobject(&event->parent.parent) == RT_FALSE);
 
     RT_DEBUG_NOT_IN_INTERRUPT;
 
@@ -1009,6 +1036,8 @@ rt_err_t rt_event_send(rt_event_t event, rt_uint32_t set)
 
     /* parameter check */
     RT_ASSERT(event != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&event->parent.parent) == RT_Object_Class_Event);
+
     if (set == 0)
         return -RT_ERROR;
 
@@ -1109,6 +1138,8 @@ rt_err_t rt_event_recv(rt_event_t   event,
 
     /* parameter check */
     RT_ASSERT(event != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&event->parent.parent) == RT_Object_Class_Event);
+
     if (set == 0)
         return -RT_ERROR;
 
@@ -1218,8 +1249,11 @@ RTM_EXPORT(rt_event_recv);
 rt_err_t rt_event_control(rt_event_t event, int cmd, void *arg)
 {
     rt_ubase_t level;
-    RT_ASSERT(event != RT_NULL);
 
+    /* parameter check */
+    RT_ASSERT(event != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&event->parent.parent) == RT_Object_Class_Event);
+    
     if (cmd == RT_IPC_CMD_RESET)
     {
         /* disable interrupt */
@@ -1299,6 +1333,8 @@ rt_err_t rt_mb_detach(rt_mailbox_t mb)
 {
     /* parameter check */
     RT_ASSERT(mb != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mb->parent.parent) == RT_Object_Class_MailBox);
+    RT_ASSERT(rt_object_is_systemobject(&mb->parent.parent));
 
     /* resume all suspended thread */
     rt_ipc_list_resume_all(&(mb->parent.suspend_thread));
@@ -1373,6 +1409,8 @@ rt_err_t rt_mb_delete(rt_mailbox_t mb)
 
     /* parameter check */
     RT_ASSERT(mb != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mb->parent.parent) == RT_Object_Class_MailBox);
+    RT_ASSERT(rt_object_is_systemobject(&mb->parent.parent) == RT_FALSE);
 
     /* resume all suspended thread */
     rt_ipc_list_resume_all(&(mb->parent.suspend_thread));
@@ -1411,6 +1449,7 @@ rt_err_t rt_mb_send_wait(rt_mailbox_t mb,
 
     /* parameter check */
     RT_ASSERT(mb != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mb->parent.parent) == RT_Object_Class_MailBox);
 
     /* initialize delta tick */
     tick_delta = 0;
@@ -1556,6 +1595,7 @@ rt_err_t rt_mb_recv(rt_mailbox_t mb, rt_uint32_t *value, rt_int32_t timeout)
 
     /* parameter check */
     RT_ASSERT(mb != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mb->parent.parent) == RT_Object_Class_MailBox);
 
     /* initialize delta tick */
     tick_delta = 0;
@@ -1686,7 +1726,10 @@ RTM_EXPORT(rt_mb_recv);
 rt_err_t rt_mb_control(rt_mailbox_t mb, int cmd, void *arg)
 {
     rt_ubase_t level;
+
+    /* parameter check */
     RT_ASSERT(mb != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mb->parent.parent) == RT_Object_Class_MailBox);
 
     if (cmd == RT_IPC_CMD_RESET)
     {
@@ -1796,6 +1839,8 @@ rt_err_t rt_mq_detach(rt_mq_t mq)
 {
     /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
+    RT_ASSERT(rt_object_is_systemobject(&mq->parent.parent));
 
     /* resume all suspended thread */
     rt_ipc_list_resume_all(&mq->parent.suspend_thread);
@@ -1889,6 +1934,8 @@ rt_err_t rt_mq_delete(rt_mq_t mq)
 
     /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
+    RT_ASSERT(rt_object_is_systemobject(&mq->parent.parent) == RT_FALSE);
 
     /* resume all suspended thread */
     rt_ipc_list_resume_all(&(mq->parent.suspend_thread));
@@ -1919,7 +1966,9 @@ rt_err_t rt_mq_send(rt_mq_t mq, void *buffer, rt_size_t size)
     register rt_ubase_t temp;
     struct rt_mq_message *msg;
 
+    /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
     RT_ASSERT(buffer != RT_NULL);
     RT_ASSERT(size != 0);
 
@@ -2007,7 +2056,9 @@ rt_err_t rt_mq_urgent(rt_mq_t mq, void *buffer, rt_size_t size)
     register rt_ubase_t temp;
     struct rt_mq_message *msg;
 
+    /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
     RT_ASSERT(buffer != RT_NULL);
     RT_ASSERT(size != 0);
 
@@ -2095,7 +2146,9 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
     struct rt_mq_message *msg;
     rt_uint32_t tick_delta;
 
+    /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
     RT_ASSERT(buffer != RT_NULL);
     RT_ASSERT(size != 0);
 
@@ -2229,7 +2282,9 @@ rt_err_t rt_mq_control(rt_mq_t mq, int cmd, void *arg)
     rt_ubase_t level;
     struct rt_mq_message *msg;
 
+    /* parameter check */
     RT_ASSERT(mq != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&mq->parent.parent) == RT_Object_Class_MessageQueue);
 
     if (cmd == RT_IPC_CMD_RESET)
     {

@@ -57,6 +57,14 @@ static int  fd_alloc(struct dfs_fdtable *fdt, int startfd);
  */
 int dfs_init(void)
 {
+    static rt_bool_t init_ok = RT_FALSE;
+
+    if (init_ok)
+    {
+        rt_kprintf("dfs already init.\n");
+        return 0;
+    }
+
     /* clear filesystem operations table */
     memset((void *)filesystem_operation_table, 0, sizeof(filesystem_operation_table));
     /* clear filesystem table */
@@ -83,6 +91,8 @@ int dfs_init(void)
         dfs_mount(NULL, "/dev", "devfs", 0, 0);
     }
 #endif
+
+    init_ok = RT_TRUE;
 
     return 0;
 }
@@ -142,7 +152,7 @@ static int fd_alloc(struct dfs_fdtable *fdt, int startfd)
         cnt = cnt > DFS_FD_MAX? DFS_FD_MAX : cnt;
 
         fds = rt_realloc(fdt->fds, cnt * sizeof(struct dfs_fd *));
-        if (fds == NULL) goto __out; /* return fdt->maxfd */
+        if (fds == NULL) goto __exit; /* return fdt->maxfd */
 
         /* clean the new allocated fds */
         for (index = fdt->maxfd; index < cnt; index ++)
@@ -157,12 +167,12 @@ static int fd_alloc(struct dfs_fdtable *fdt, int startfd)
     /* allocate  'struct dfs_fd' */
     if (idx < fdt->maxfd &&fdt->fds[idx] == RT_NULL)
     {
-        fdt->fds[idx] = rt_malloc(sizeof(struct dfs_fd));
+        fdt->fds[idx] = rt_calloc(1, sizeof(struct dfs_fd));
         if (fdt->fds[idx] == RT_NULL)
             idx = fdt->maxfd;
     }
 
-__out:
+__exit:
     return idx;
 }
 
@@ -189,6 +199,7 @@ int fd_new(void)
     if (idx == fdt->maxfd)
     {
         idx = -(1 + DFS_FD_OFFSET);
+        dbg_log(DBG_ERROR, "DFS fd new is failed! Could not found an empty fd entry.");
         goto __result;
     }
 
@@ -312,7 +323,7 @@ int fd_is_open(const char *pathname)
         for (index = 0; index < fdt->maxfd; index++)
         {
             fd = fdt->fds[index];
-            if (fd == NULL) continue;
+            if (fd == NULL || fd->fops == NULL || fd->path == NULL) continue;
 
             if (fd->fops == fs->ops->fops && strcmp(fd->path, mountpath) == 0)
             {
@@ -497,13 +508,13 @@ struct dfs_fdtable* dfs_fdtable_get(void)
 {
     struct dfs_fdtable *fdt;
 #ifdef RT_USING_LWP
-	struct rt_lwp *lwp;
+    struct rt_lwp *lwp;
 
-	lwp = (struct rt_lwp *)rt_thread_self()->user_data;
+    lwp = (struct rt_lwp *)rt_thread_self()->lwp;
     if (lwp)
-		fdt = &lwp->fdt;
-	else
-		fdt = &_fdtab;
+        fdt = &lwp->fdt;
+    else
+        fdt = &_fdtab;
 #else
     fdt = &_fdtab;
 #endif
@@ -522,23 +533,30 @@ int list_fd(void)
     if (!fd_table) return -1;
 
     rt_enter_critical();
-
+    
+    rt_kprintf("fd type    ref magic  path\n");
+    rt_kprintf("-- ------  --- ----- ------\n");
     for (index = 0; index < fd_table->maxfd; index ++)
     {
         struct dfs_fd *fd = fd_table->fds[index];
 
-        if (fd->fops)
+        if (fd && fd->fops)
         {
-            rt_kprintf("--fd: %d--", index);
-            if (fd->type == FT_DIRECTORY) rt_kprintf("[dir]\n");
-            if (fd->type == FT_REGULAR)   rt_kprintf("[file]\n");
-            if (fd->type == FT_SOCKET)    rt_kprintf("[socket]\n");
-            if (fd->type == FT_USER)      rt_kprintf("[user]\n");
-            rt_kprintf("refcount=%d\n", fd->ref_count);
-            rt_kprintf("magic=0x%04x\n", fd->magic);
+            rt_kprintf("%2d ", index);
+            if (fd->type == FT_DIRECTORY)    rt_kprintf("%-7.7s ", "dir");
+            else if (fd->type == FT_REGULAR) rt_kprintf("%-7.7s ", "file");
+            else if (fd->type == FT_SOCKET)  rt_kprintf("%-7.7s ", "socket");
+            else if (fd->type == FT_USER)    rt_kprintf("%-7.7s ", "user");
+            else rt_kprintf("%-8.8s ", "unknown");
+            rt_kprintf("%3d ", fd->ref_count);
+            rt_kprintf("%04x  ", fd->magic);
             if (fd->path)
             {
-                rt_kprintf("path: %s\n", fd->path);
+                rt_kprintf("%s\n", fd->path);
+            }
+            else
+            {
+                rt_kprintf("\n");
             }
         }
     }
